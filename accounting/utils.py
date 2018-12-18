@@ -199,6 +199,8 @@ def build_or_refresh_db():
 def insert_data():
     #Contacts
     contacts = []
+    mary_sue_client = Contact('Mary Sue', "Client")
+    contacts.append(mary_sue_client)
     john_doe_agent = Contact('John Doe', 'Agent')
     contacts.append(john_doe_agent)
     john_doe_insured = Contact('John Doe', 'Named Insured')
@@ -233,6 +235,12 @@ def insert_data():
     p3.named_insured = ryan_bucket.id
     p3.agent = john_doe_agent.id
     policies.append(p3)
+
+    p4 = Policy("Policy Four", date(2015, 2, 1), 500)
+    p4.billing_schedule = 'Two-Pay'
+    p4.named_insured = ryan_bucket.id
+    p4.agent = john_doe_agent.id
+    policies.append(p4)
 
     for policy in policies:
         db.session.add(policy)

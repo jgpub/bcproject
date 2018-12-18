@@ -34,7 +34,7 @@ class Contact(db.Model):
     #column definitions
     id = db.Column(u'id', db.INTEGER(), primary_key=True, nullable=False)
     name = db.Column(u'name', db.VARCHAR(length=128), nullable=False)
-    role = db.Column(u'role', db.Enum(u'Named Insured', u'Agent'), nullable=False)
+    role = db.Column(u'role', db.Enum(u'Named Insured', u'Agent', u'Client'), nullable=False)
 
     def __init__(self, name, role):
         self.name = name
