@@ -54,6 +54,48 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(len(self.policy.invoices), 1)
         self.assertEquals(self.policy.invoices[0].amount_due, self.policy.annual_premium)
 
+    def test_monthly_billing_schedule(self):
+        self.policy.billing_schedule = "Monthly"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Invoices should be made when the class is initiated
+        pa = PolicyAccounting(self.policy.id)
+        self.assertEquals(len(self.policy.invoices), 12)
+        self.assertEquals(self.policy.invoices[0].amount_due, self.policy.annual_premium / 12)
+        # let's make sure the bill dates are correct
+        true_bill_dates = set([
+            date(2015, 1, 1),
+            date(2015, 2, 1),
+            date(2015, 3, 1),
+            date(2015, 4, 1),
+            date(2015, 5, 1),
+            date(2015, 6, 1),
+            date(2015, 7, 1),
+            date(2015, 8, 1),
+            date(2015, 9, 1),
+            date(2015, 10, 1),
+            date(2015, 11, 1),
+            date(2015, 12, 1)
+        ])
+
+        bill_dates = set([invoice.bill_date for invoice in self.policy.invoices])
+        self.assertEquals(true_bill_dates, bill_dates)
+
+        # now we check due dates
+        true_due_dates = set([
+            x + relativedelta(months=1) for x in true_bill_dates
+        ])
+
+        due_dates = set([invoice.due_date for invoice in self.policy.invoices])
+        self.assertEquals(true_due_dates, due_dates)
+
+        # Finally we check cancel dates
+        true_cancel_dates = set([
+            x + relativedelta(months=1, days=14) for x in true_bill_dates
+        ])
+
+        cancel_dates = set([invoice.cancel_date for invoice in self.policy.invoices])
+        self.assertEquals(true_cancel_dates, cancel_dates)
 
 class TestReturnAccountBalance(unittest.TestCase):
 
