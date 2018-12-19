@@ -4,7 +4,7 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
 from accounting import db
-from models import Contact, Invoice, Payment, Policy
+from models import Contact, Invoice, Payment, Policy, PolicyCancellation
 
 """
 #######################################################
@@ -183,11 +183,22 @@ class PolicyAccounting(object):
             if not self.return_account_balance(invoice.cancel_date):
                 continue
             else:
-                print "THIS POLICY SHOULD HAVE CANCELED"
+                self.cancel_policy(
+                    "Nonpayment",
+                    invoice.cancel_date,
+                    notes="Automatically deleted due to non-payment",
+                )
                 break
-        else:
-            print "THIS POLICY SHOULD NOT CANCEL"
 
+    def cancel_policy(self, reason, date, notes=None):
+        cancellation = PolicyCancellation(
+            policy_id=self.policy.id,
+            reason=reason,
+            date=date,
+            notes=notes
+        )
+        db.session.add(cancellation)
+        db.session.commit()
 
     def make_invoices(self):
         invoices = self.make_invoices_helper()

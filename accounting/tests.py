@@ -368,6 +368,85 @@ class TestEvaluateCancellationPending(unittest.TestCase):
             pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=d)
         )
 
-    
+
+class TestCancellation(unittest.TestCase):
+    """
+    Tests for PolicyAccount.evaluate_cancel and PolicyAccount.cancel_policy
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        cls.policy.billing_schedule = "Monthly"
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        if cls.policy.cancellation:
+            db.session.delete(cls.policy.cancellation)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def setUp(self):
+        self.payments = []
+
+    def tearDown(self):
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        for payment in self.payments:
+            db.session.delete(payment)
+        if self.policy.cancellation:
+            db.session.delete(self.policy.cancellation)
+        db.session.commit()
+
+    def test_cancel_policy(self):
+        """
+        Test the basic cancellation mechanism
+        """
+        self.assertIsNone(
+            self.policy.cancellation
+        )
+
+        pa = PolicyAccounting(self.policy.id)
+
+        pa.cancel_policy(
+            "Nonpayment",
+            date(2015, 1, 1)
+        )
+
+        self.assertIsNotNone(
+            self.policy.cancellation
+        )
+
+        self.assertTrue(
+            self.policy.cancelled
+        )
+
+    def test_nonpayment_cancellation(self):
+        """
+        Test the automatic cancallation of a policy due to nonpayment
+        """
+        self.assertIsNone(
+            self.policy.cancellation
+        )
+
+        pa = PolicyAccounting(self.policy.id)
+        pa.evaluate_cancel(date(2015, 6, 1))
+
+        self.assertTrue(
+            pa.policy.cancelled
+        )
+
 
 

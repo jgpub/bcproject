@@ -23,7 +23,32 @@ class Policy(db.Model):
         self.effective_date = effective_date
         self.annual_premium = annual_premium
 
+    @property
+    def cancelled(self):
+        return self.cancellation is not None
+
     invoices = db.relation('Invoice', primaryjoin="Invoice.policy_id==Policy.id")
+    cancellation = db.relation('PolicyCancellation', backref="policy", uselist=False)
+
+
+class PolicyCancellation(db.Model):
+    __tablename__ = 'policy_cancellations'
+
+    __table_args__ = {}
+
+    # column definitions
+    policy_id = db.Column(u'policy_id', db.ForeignKey('policies.id'), primary_key=True)
+    # Why was this policy cancelled
+    reason = db.Column(u'reason', db.Enum(u'Nonpayment', u'Underwriting', u'Client'), nullable=False)
+    date = db.Column(u'date', db.DATE(), nullable=False)
+    notes = db.Column(u'notes', db.VARCHAR(length=256), nullable=False, default='')
+
+    def __init__(self, policy_id, reason, date, notes=None):
+        self.policy_id = policy_id
+        self.reason = reason
+        self.date = date
+        if notes is not None:
+            self.notes = notes
 
 
 class Contact(db.Model):
