@@ -97,6 +97,31 @@ class TestBillingSchedules(unittest.TestCase):
         cancel_dates = set([invoice.cancel_date for invoice in self.policy.invoices])
         self.assertEquals(true_cancel_dates, cancel_dates)
 
+    def test_change_billing_schedule(self):
+        self.policy.billing_schedule = "Two-Pay"
+        self.assertFalse(self.policy.invoices)
+        pa = PolicyAccounting(self.policy.id)
+
+        self.assertEquals(len(self.policy.invoices), 2)
+
+        # Change the billing cycle to monthly
+        pa.change_billing_schedule("Monthly")
+
+        # Now we should have 2 + 12 = 14 invoices
+        self.assertEquals(len(self.policy.invoices), 14)
+
+        # 2 invoices should be deleted and should have
+        # amount_due = 1200/2 = 600
+        deleted_invoices = [i for i in pa.policy.invoices if i.deleted]
+        for invoice in deleted_invoices:
+            self.assertEquals(invoice.amount_due, 600)
+
+        # 12 invoices should not be deleted and should have
+        # amount_due = 1200/12 = 100
+        new_invoices = [i for i in pa.policy.invoices if not i.deleted]
+        for invoice in new_invoices:
+            self.assertEquals(invoice.amount_due, 100)
+
 class TestReturnAccountBalance(unittest.TestCase):
 
     @classmethod
@@ -140,10 +165,32 @@ class TestReturnAccountBalance(unittest.TestCase):
         pa = PolicyAccounting(self.policy.id)
         self.assertEquals(pa.return_account_balance(date_cursor=self.policy.effective_date), 300)
 
+    def test_quarterly_on_eff_date_after_change(self):
+        """
+        Same as above, but after a change in billing schedule.
+        """
+        self.policy.billing_schedule = "Monthly"
+        pa = PolicyAccounting(self.policy.id)
+        pa.change_billing_schedule("Quarterly")
+        self.assertEquals(pa.return_account_balance(date_cursor=self.policy.effective_date), 300)
+
     def test_quarterly_on_last_installment_bill_date(self):
         self.policy.billing_schedule = "Quarterly"
         pa = PolicyAccounting(self.policy.id)
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.deleted == False)\
+                                .order_by(Invoice.bill_date).all()
+        self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 1200)
+
+    def test_quarterly_on_last_installment_bill_date_after_change(self):
+        """
+        Same as above, buf after change in billing schedule.
+        """
+        self.policy.billing_schedule = "Monthly"
+        pa = PolicyAccounting(self.policy.id)
+        pa.change_billing_schedule("Quarterly")
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.deleted == False)\
                                 .order_by(Invoice.bill_date).all()
         self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 1200)
 
@@ -151,6 +198,21 @@ class TestReturnAccountBalance(unittest.TestCase):
         self.policy.billing_schedule = "Quarterly"
         pa = PolicyAccounting(self.policy.id)
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.deleted == False)\
+                                .order_by(Invoice.bill_date).all()
+        self.payments.append(pa.make_payment(contact_id=self.policy.named_insured,
+                                             date_cursor=invoices[1].bill_date, amount=600))
+        self.assertEquals(pa.return_account_balance(date_cursor=invoices[1].bill_date), 0)
+
+    def test_quarterly_on_second_installment_bill_date_with_full_payment_after_change(self):
+        """
+        Same as above, buf after change in billing schedule.
+        """
+        self.policy.billing_schedule = "Monthly"
+        pa = PolicyAccounting(self.policy.id)
+        pa.change_billing_schedule("Quarterly")
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.deleted == False)\
                                 .order_by(Invoice.bill_date).all()
         self.payments.append(pa.make_payment(contact_id=self.policy.named_insured,
                                              date_cursor=invoices[1].bill_date, amount=600))

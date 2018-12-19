@@ -13,6 +13,10 @@ This is the base code for the engineer project.
 """
 
 class PolicyAccounting(object):
+
+    # Set the number of months associated with each billing schedule.
+    billing_schedules = {'Annual': None, 'Two-Pay': 2, 'Semi-Annual': 3, 'Quarterly': 4, 'Monthly': 12}
+
     """
      Each policy has its own instance of accounting.
     """
@@ -26,6 +30,30 @@ class PolicyAccounting(object):
 
         if not self.policy.invoices:
             self.make_invoices()
+
+    def change_billing_schedule(self, new_billing_schedule):
+        """
+        Changes billing schedule, current invoices are marked as deleted,
+        generates new invoices.
+        """
+
+        # Make sure we were given a valid new_billing_schedule
+        if new_billing_schedule not in self.billing_schedules:
+            raise ValueError("billing_schedule must be one of: {}".format(self.billing_schedules))
+
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.deleted==False)\
+                                .all()
+
+        for invoice in invoices:
+            invoice.deleted = True
+
+        self.policy.billing_schedule = new_billing_schedule
+        new_invoices = self.make_invoices_helper()
+        for invoice in new_invoices:
+            db.session.add(invoice)
+        db.session.commit()
+
 
     def return_account_balance(self, date_cursor=None):
         """
@@ -45,6 +73,7 @@ class PolicyAccounting(object):
         # Pull invoices for the policy that occurred at or before the date_cursor.
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.bill_date <= date_cursor)\
+                                .filter(Invoice.deleted==False)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
 
@@ -106,6 +135,7 @@ class PolicyAccounting(object):
         # policy
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.due_date <= date_cursor)\
+                                .filter(Invoice.deleted==False)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
 
@@ -143,6 +173,7 @@ class PolicyAccounting(object):
         # policy
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.cancel_date <= date_cursor)\
+                                .filter(Invoice.deleted==False)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
 
@@ -159,16 +190,29 @@ class PolicyAccounting(object):
 
 
     def make_invoices(self):
+        invoices = self.make_invoices_helper()
+
+        # Save the invoices to the Database.
+        for invoice in invoices:
+            db.session.add(invoice)
+        db.session.commit()
+
+    def make_invoices_helper(self):
         """
         Generates invoices for the PolicyAccount object's policy.  Note that all invoices
         are generated and stored in the database at once, rather than doing so period-by-period.
-        """
-        # Clear any existing invoice.
-        for invoice in self.policy.invoices:
-            invoice.delete()
 
-        # Set the number of months associated with each billing schedule.
-        billing_schedules = {'Annual': None, 'Two-Pay': 2, 'Semi-Annual': 3, 'Quarterly': 4, 'Monthly': 12}
+        This helper method embodies all the functionality needed for the
+        "makde_invoices" method but leaves out the database commit.  This is done
+        so that other methods can use this functionality in its own database transaction
+        (see change_billing_schedule).
+        """
+
+        # Check that no non-deleted invoices exist right now
+        for invoice in self.policy.invoices:
+            if not invoice.deleted:
+                raise RuntimeError("Attempted to make invoices when non-deleted"\
+                    "already exist.")
 
         invoices = []
 
@@ -189,7 +233,7 @@ class PolicyAccounting(object):
             # Calculate billing periodicity (number of months between billing cycles)
             # and billing frequency (how many times per year) depending on the policy's
             # billing schedule.
-            billing_periodicity = billing_schedules.get(self.policy.billing_schedule)
+            billing_periodicity = self.billing_schedules.get(self.policy.billing_schedule)
             billing_frequency = 12 / billing_periodicity
 
             # Adjust the first invoice's amount due appropriately.
@@ -210,10 +254,8 @@ class PolicyAccounting(object):
         else:
             print "You have chosen a bad billing schedule."
 
-        # Save the invoices to the Database.
-        for invoice in invoices:
-            db.session.add(invoice)
-        db.session.commit()
+        return invoices
+
 
 ################################
 # The functions below are for the db and 
