@@ -99,7 +99,36 @@ class PolicyAccounting(object):
          being paid in full. However, it has not necessarily
          made it to the cancel_date yet.
         """
-        pass
+        if not date_cursor:
+            date_cursor = datetime.now().date()
+
+        # pull all invoices due up to and including date_cursor for the relevant
+        # policy
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.due_date <= date_cursor)\
+                                .order_by(Invoice.bill_date)\
+                                .all()
+
+        # pull all payments made up to and including date_cursor
+        payments = Payment.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Payment.transaction_date <= date_cursor)\
+                                .order_by(Payment.transaction_date)\
+                                .all()
+
+        # Calculate running total of balance.  The account is past due
+        # if there is any invoice for which a balance is present after
+        # all payments up to the due date have been taken into account
+        due = 0
+        for invoice in invoices:
+            due += invoice.amount_due
+            # Grab all payments made before the invoice's due_date
+            while len(payments) and (payments[0].transaction_date <= invoice.due_date):
+                due -= payments.pop(0).amount_paid
+
+            if due > 0:
+                return True
+        else:
+            return False
 
     def evaluate_cancel(self, date_cursor=None):
         """
