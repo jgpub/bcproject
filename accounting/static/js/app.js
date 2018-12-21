@@ -57,7 +57,11 @@ var PolicyViewModel = function() {
 			};
 			var url = "/policies/" + this.params.policy_id + "/invoices";
 			url += "?date=" + canonicalDate(that.date());			
-			$.getJSON(url, that.invoices);
+			$.getJSON(url, that.invoices)
+				.fail(function(e) {
+					e = e.responseJSON;
+					alert("Am error occurred: " + e.error +'. Please contact support');
+				});
 
 			url = "/policies/" + this.params.policy_id + "/payments";
 			$.getJSON(url, that.payments);

@@ -1,6 +1,7 @@
 # Needed to serialize and deserialize data
 import json
-from flask import request
+from datetime import datetime
+from flask import request, Response
 # Import things from Flask that we need.
 from accounting import app, db
 from dateutil.parser import parse as date_parse
@@ -35,9 +36,28 @@ def search():
 
 @app.route("/policies/<id>/invoices")
 def invoices(id):
-    date = date_parse(
-        request.args.get('date')
-    )
+    # get date query parameter
+    date = request.args.get('date', None)
+    
+    # If no date is provided, use the current date
+    if date is None:
+        date = datetime.now().date()
+    else:
+        # otherwise, try to parse date
+        try: 
+            date = date_parse(
+                request.args.get('date')
+            )
+        # If we failed, return an error
+        except ValueError:
+            r = json.dumps({
+                "error": "Date formatted incorrectly"
+            })
+            return Response(
+                r,
+                status=400
+            )
+
     invoices = Invoice.query\
         .filter_by(policy_id=id)\
         .filter(Invoice.bill_date <= date)\
