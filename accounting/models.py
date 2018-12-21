@@ -3,10 +3,35 @@ from accounting import db
 # 
 # DeclarativeBase = declarative_base()
 
-class Policy(db.Model):
+class Serializable(object):
+    def to_dict(self, custom_cols=None):
+        try:
+            cols = custom_cols if custom_cols else self.serializable_cols
+            return {
+                c: getattr(self, c)
+                for c in cols
+            }
+        except AttributeError:
+            raise RuntimeError("Error in to_dict.  Make sure class "\
+                "implementing Serializable has 'serializable_cols' class "\
+                "variable and that it contains valid columns.  If passing "\
+                "custom_cols, make sure the collection contains valid columns")
+
+class Policy(db.Model, Serializable):
     __tablename__ = 'policies'
 
     __table_args__ = {}
+
+    serializable_cols = {
+        'id',
+        'policy_number',
+        'effective_date',
+        'status',
+        'billing_schedule',
+        'annual_premium',
+        'named_insured',
+        'agent'
+    }
 
     #column definitions
     id = db.Column(u'id', db.INTEGER(), primary_key=True, nullable=False)
@@ -29,6 +54,8 @@ class Policy(db.Model):
 
     invoices = db.relation('Invoice', primaryjoin="Invoice.policy_id==Policy.id")
     cancellation = db.relation('PolicyCancellation', backref="policy", uselist=False)
+    agent_relation = db.relation('Contact', primaryjoin="Contact.id == Policy.agent", uselist=False)
+    named_insured_relation = db.relation('Contact', primaryjoin="Contact.id == Policy.named_insured", uselist=False)
 
 
 class PolicyCancellation(db.Model):
@@ -51,10 +78,16 @@ class PolicyCancellation(db.Model):
             self.notes = notes
 
 
-class Contact(db.Model):
+class Contact(db.Model, Serializable):
     __tablename__ = 'contacts'
 
     __table_args__ = {}
+
+    serializable_cols = {
+        'id',
+        'name',
+        'role'
+    }
 
     #column definitions
     id = db.Column(u'id', db.INTEGER(), primary_key=True, nullable=False)
@@ -66,11 +99,20 @@ class Contact(db.Model):
         self.role = role
 
 
-class Invoice(db.Model):
+class Invoice(db.Model, Serializable):
     __tablename__ = 'invoices'
 
     __table_args__ = {}
 
+    serializable_cols = {
+        "id",
+        "policy_id",
+        "bill_date",
+        "due_date",
+        "cancel_date",
+        "amount_due",
+        "deleted"
+    }
     #column definitions
     id = db.Column(u'id', db.INTEGER(), primary_key=True, nullable=False)
     policy_id = db.Column(u'policy_id', db.INTEGER(), db.ForeignKey('policies.id'), nullable=False)
@@ -88,11 +130,18 @@ class Invoice(db.Model):
         self.amount_due = amount_due
 
 
-class Payment(db.Model):
+class Payment(db.Model, Serializable):
     __tablename__ = 'payments'
 
     __table_args__ = {}
 
+    serializable_cols = {
+        "id",
+        "policy_id",
+        "contact_id",
+        "amount_paid",
+        "transaction_date"
+    }
     #column definitions
     id = db.Column(u'id', db.INTEGER(), primary_key=True, nullable=False)
     policy_id = db.Column(u'policy_id', db.INTEGER(), db.ForeignKey('policies.id'), nullable=False)

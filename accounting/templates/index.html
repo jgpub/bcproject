@@ -1,15 +1,143 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Some sort of title?</title>
-  <meta name="description" content="What is this?">
-  <meta name="author" content="Who?">
-  <!--[if lt IE 9]>
+	<meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="View used to look up policies by number?">
+  <meta name="author" content="Joshua Gevirtz">
+
+  <link rel="stylesheet" href="{{url_for('static', filename="css/bootstrap.min.css")}}">
+  <link rel="stylesheet" href="{{url_for('static', filename="css/bootstrap-datetimepicker.min.css")}}">
+
+	<title>Policies</title>
+	<script src="{{url_for('static', filename="js/jquery-3.3.1.min.js")}}"></script>
+	
+	<script src="{{url_for('static', filename="js/moment.js")}}"></script>
+	<script src="{{url_for('static', filename="js/bootstrap.min.js")}}"></script>
+	<script src="{{url_for('static', filename="js/bootstrap-datetimepicker.min.js")}}"></script>
+	<script src="{{url_for('static', filename="js/sammy-0.7.6.min.js")}}"></script>
+	<script src="{{url_for('static', filename="js/knockout-3.4.2.js")}}"></script>
+	<script src="{{url_for('static', filename="js/app.js")}}"></script>
+
+	<style type="text/css">
+		.link {
+			cursor: pointer;
+		}
+
+		.left-panel {
+			border-right-width: 2px;
+			border-right-style: solid;
+		}
+
+		.search {
+			padding-top: 2em;
+		}
+
+		.footer {
+			padding-bottom: 10em;
+		}
+
+	</style>
+	<!--[if lt IE 9]>
 <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 <![endif]-->
 </head>
 <body>
-    <p>Your server is working.</p>
+<div class="container">
+	<div class="row search">
+		<form>
+			<div class="col-sm-2">
+				<div class="form-group">
+					<input 
+						class="form-control"
+						type="text"
+						placeholder="Policy Number" 
+						data-bind="value: policySearch"/> 
+
+				</div>
+				<!-- <ul data-bind="foreach: policies">
+					<li data-bind="text: policy_number, click: $root.loadInvoices"></li>
+				</ul> -->
+			</div>
+			<div class="col-sm-2">
+				<div class='input-group date' id='datetimepicker1'>
+					<input type='text' class="form-control" data-bind="dateTimePicker: date"/>
+					<span class="input-group-addon">
+						<span class="glyphicon glyphicon-calendar"></span>
+					</span>
+				</div>
+    	</div>
+    	<div class="col-sm-1">
+    		<button 
+    			class="form-control"
+    			data-bind="click: search">Search</button>
+    	</div>
+		</form>
+	</div>
+
+	<div class="row" data-bind="if: policies">
+		<div class="col-sm-12">
+			<h2>Policies</h2>
+			<div data-bind="foreach: policies">
+				<div>
+					<a class="link" 
+						data-bind="text: policy_number, click: $root.loadInvoices"></a>
+				</div>
+			</div>
+			<div data-bind="ifnot: $root.len(policies)">
+				No policies found for given query.
+			</div>
+		</div>
+	</div>
+	<hr />
+
+	<div class="row" data-bind="visible: invoices">
+		<div class="col-sm-6 left-panel">
+			<h2>Invoices</h2>
+			<div class="invoice" data-bind="foreach: invoices">
+				<div>
+					<label>Amount Due: </label>
+					<span data-bind="text: $root.formatDollarAmount(amount_due)"></span>
+				</div>
+				<div>
+					<label>Bill Date: </label>
+					<span data-bind="text: $root.formatDate(bill_date)"></span>
+				</div>
+				<div>
+					<label>Due Date: </label>
+					<span data-bind="text: $root.formatDate(due_date)"></span>
+				</div>
+				<div>
+					<label>Cancel Date: </label>
+					<span data-bind="text: $root.formatDate(cancel_date)"></span>
+				</div>
+				<hr />
+			</div>
+		</div>
+		<div class="col-sm-6">
+			<h2>Payments</h2>
+			<div data-bind="foreach: payments">
+				<div>
+					<label>Amount Paid: </label>
+					<span data-bind="text: $root.formatDollarAmount(amount_paid)"></span>
+				</div>
+				<div>
+					<label>Date: </label>
+					<span data-bind="text: $root.formatDate(transaction_date)"></span>
+				</div>
+			</div>
+		</div>
+	</div>
+
+		<h3>Due</h3>
+		<div data-bind="text: $root.formatDollarAmount(balance)"></div>
+		<div class="footer"></div>
+
+	</div>
+	<script type="text/javascript">
+		ko.applyBindings(new PolicyViewModel());
+	</script>
 </body>
+
+
 </html>
